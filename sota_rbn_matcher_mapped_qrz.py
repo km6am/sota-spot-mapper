@@ -1471,7 +1471,7 @@ def main():
     # Debug flag - set to True to print SOTASpot objects and enable debug logging
     debug = config.get("debug", {}).get("enabled", False)
     refresh_interval = config.get("timing", {}).get("refresh_interval_seconds", 60)
-    history_window = config.get("timing", {}).get("history_window_hours", 1)
+    history_window = config.get("timing", {}).get("history_window_minutes", 60)
     map_window = config.get("timing", {}).get("map_window_minutes", 15)
     recent_spots_window = config.get("timing", {}).get("recent_spots_minutes", 60)
     
@@ -1505,7 +1505,7 @@ def main():
 
             # Show propagation statistics
             stats = matcher.get_propagation_stats(history_window)  # Last hour
-            print(f"\n=== Propagation Statistics (Last {history_window} Hour(s)) ===")
+            print(f"\n=== Propagation Statistics (Last {history_window} Minutes(s)) ===")
             print(f"Total propagation paths: {stats.get('total_paths', 0)}")
             if stats.get('total_paths', 0) > 0:
                 print(f"Unique SOTA summits: {stats.get('unique_summits', 0)}")
@@ -1537,7 +1537,7 @@ def main():
             # Show recent SOTA matches
             matches = matcher.get_recent_matches(history_window)  # Configurable window
             if matches:
-                print(f"\nFound {len(matches)} SOTA/RBN matches in the last {history_window} hour(s):")
+                print(f"\nFound {len(matches)} SOTA/RBN matches in the last {history_window} minutes(s):")
                 for match in matches[:10]:  # Show first 10
                     callsign, summit, sota_freq, rbn_freq, sota_time, rbn_time, time_diff, freq_diff, snr, sota_spotter, rbn_spotter = match
                     print(f"  {callsign} on {summit}: SOTA {sota_freq:.3f}MHz (by {sota_spotter}) -> RBN {rbn_freq:.1f}kHz (by {rbn_spotter}) "

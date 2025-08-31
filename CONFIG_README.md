@@ -36,7 +36,7 @@ The SOTA RBN Matcher now uses a JSON configuration file to manage all settings. 
 
 ### Timing Settings
 - `refresh_interval_seconds`: How often to refresh statistics and generate maps (default: 60)
-- `history_window_hours`: How many hours of history to analyze for statistics (default: 1)
+- `history_window_minutes`: How many minutes of history to analyze for statistics (default: 60)
 - `map_window_minutes`: How many minutes of data to include in the propagation map (default: 15)
 - `recent_spots_minutes`: How many minutes of recent spots to display (default: 60)
 
