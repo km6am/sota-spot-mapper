@@ -27,7 +27,7 @@
     
     "timing": {
         "refresh_interval_seconds": 60,
-        "history_window_hours": 1,
+        "history_window_minutes": 60,
         "map_window_minutes": 15,
         "recent_spots_minutes": 60
     },

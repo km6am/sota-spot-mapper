@@ -115,6 +115,15 @@ class QRZLookup:
                 'password': self.password,
                 'agent': 'sota-rbn-matcher'
             }
+            """<ns0:QRZDatabase xmlns:ns0="http://xmldata.qrz.com" version="1.36">
+  <ns0:Session>
+    <ns0:Key>5aefaf4bbe82e5d001ce8a2d79e5635e</ns0:Key>
+    <ns0:Count>0</ns0:Count>
+    <ns0:SubExp>Sat Aug 29 05:14:38 2026</ns0:SubExp>
+    <ns0:GMTime>Sat Aug 30 05:50:44 2025</ns0:GMTime>
+    <ns0:Remark>cpu: 0.013s</ns0:Remark>
+  </ns0:Session>
+</ns0:QRZDatabase>"""
             response = requests.get(self.base_url, params=params, timeout=10)
             response.raise_for_status()
             
@@ -885,6 +894,13 @@ class DatabaseManager:
             height: 3px;
             margin-right: 10px;
         }}
+        .legend-circle {{
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 2px solid;
+        }}
     </style>
 </head>
 <body>
@@ -901,16 +917,32 @@ class DatabaseManager:
     <div class="legend">
         <h4>Legend</h4>
         <div class="legend-item">
-            <div class="legend-color" style="background: #ff4444;"></div>
+            <div class="legend-circle" style="background: #ff4444; border-color: #ff0000;"></div>
             <span>🏔️ SOTA Summit</span>
         </div>
         <div class="legend-item">
-            <div class="legend-color" style="background: #4444ff;"></div>
+            <div class="legend-circle" style="background: #4444ff; border-color: #0000ff;"></div>
             <span>📡 RBN Spotter</span>
         </div>
         <div class="legend-item">
+            <div class="legend-color" style="background: #ff2222;"></div>
+            <span>📶 40m & below</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ff8844;"></div>
+            <span>📶 20m</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ffff44;"></div>
+            <span>📶 15m</span>
+        </div>
+        <div class="legend-item">
             <div class="legend-color" style="background: #44ff44;"></div>
-            <span>📶 Propagation Path</span>
+            <span>📶 12/10m</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #4444ff;"></div>
+            <span>📶 6m & above</span>
         </div>
     </div>
 
@@ -930,21 +962,54 @@ class DatabaseManager:
         // Track layers for cleanup
         var pathLayers = [];
         
-        // Function to get line color based on frequency
+                // Function to get line color based on frequency
         function getFrequencyColor(freq) {{
-            if (freq < 7.5) return '#ff4444';      // 40m and below - red
-            if (freq < 14.5) return '#ff8844';     // 20m - orange  
-            if (freq < 21.5) return '#ffff44';     // 15m - yellow
-            if (freq < 29.0) return '#44ff44';     // 12/10m - green
+            if (freq < 7500) return '#ff2222';      // 40m and below - red
+            if (freq < 14500) return '#ff8844';     // 20m - orange  
+            if (freq < 21500) return '#ffff44';     // 15m - yellow
+            if (freq < 29000) return '#44ff44';     // 12/10m - green
             return '#4444ff';                      // 6m and above - blue
         }}
         
         // Function to get line weight based on SNR
         function getLineWeight(snr) {{
+            if (snr < 5) return 1;
             if (snr < 10) return 2;
-            if (snr < 20) return 3;
-            if (snr < 30) return 4;
-            return 5;
+            if (snr < 15) return 3;
+            if (snr < 20) return 4;
+            if (snr < 25) return 5;
+            if (snr < 30) return 6;
+            if (snr < 35) return 7;
+            return 8;
+        }}
+        
+        // Function to calculate great circle points between two coordinates
+        function getGreatCirclePoints(lat1, lon1, lat2, lon2, numPoints = 50) {{
+            var points = [];
+            var lat1Rad = lat1 * Math.PI / 180;
+            var lon1Rad = lon1 * Math.PI / 180;
+            var lat2Rad = lat2 * Math.PI / 180;
+            var lon2Rad = lon2 * Math.PI / 180;
+            
+            var d = Math.acos(Math.sin(lat1Rad) * Math.sin(lat2Rad) + 
+                             Math.cos(lat1Rad) * Math.cos(lat2Rad) * Math.cos(lon2Rad - lon1Rad));
+            
+            for (var i = 0; i <= numPoints; i++) {{
+                var f = i / numPoints;
+                var a = Math.sin((1 - f) * d) / Math.sin(d);
+                var b = Math.sin(f * d) / Math.sin(d);
+                
+                var x = a * Math.cos(lat1Rad) * Math.cos(lon1Rad) + b * Math.cos(lat2Rad) * Math.cos(lon2Rad);
+                var y = a * Math.cos(lat1Rad) * Math.sin(lon1Rad) + b * Math.cos(lat2Rad) * Math.sin(lon2Rad);
+                var z = a * Math.sin(lat1Rad) + b * Math.sin(lat2Rad);
+                
+                var lat = Math.atan2(z, Math.sqrt(x * x + y * y)) * 180 / Math.PI;
+                var lon = Math.atan2(y, x) * 180 / Math.PI;
+                
+                points.push([lat, lon]);
+            }}
+            
+            return points;
         }}
         
         // Add paths to map
@@ -982,11 +1047,12 @@ class DatabaseManager:
                 SNR: ${{path.snr}} dB
             `);
             
-            // Propagation path line
-            var pathLine = L.polyline([
-                [path.summit_lat, path.summit_lon],
-                [path.spotter_lat, path.spotter_lon]
-            ], {{
+            // Propagation path line (great circle)
+            var greatCirclePoints = getGreatCirclePoints(
+                path.summit_lat, path.summit_lon,
+                path.spotter_lat, path.spotter_lon
+            );
+            var pathLine = L.polyline(greatCirclePoints, {{
                 color: getFrequencyColor(path.frequency),
                 weight: getLineWeight(path.snr),
                 opacity: 0.7
@@ -1492,7 +1558,7 @@ def main():
         
         # Run for a while
         while 1:
-            time.sleep(refresh_interval)  # Run for 5 minutes as example
+            
 
             # Show propagation statistics
             stats = matcher.get_propagation_stats(history_window)  # Last hour
@@ -1535,7 +1601,7 @@ def main():
                           f"({time_diff}s, {freq_diff}Hz, {snr}dB)")
             else:
                 print(f"\nNo SOTA/RBN matches in the last {history_window} hour(s)")
-        
+            time.sleep(refresh_interval)  # Run for 5 minutes as example
     except KeyboardInterrupt:
         logger.info("Shutting down...")
     finally:
