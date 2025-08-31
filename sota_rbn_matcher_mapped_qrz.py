@@ -115,15 +115,6 @@ class QRZLookup:
                 'password': self.password,
                 'agent': 'sota-rbn-matcher'
             }
-            """<ns0:QRZDatabase xmlns:ns0="http://xmldata.qrz.com" version="1.36">
-  <ns0:Session>
-    <ns0:Key>5aefaf4bbe82e5d001ce8a2d79e5635e</ns0:Key>
-    <ns0:Count>0</ns0:Count>
-    <ns0:SubExp>Sat Aug 29 05:14:38 2026</ns0:SubExp>
-    <ns0:GMTime>Sat Aug 30 05:50:44 2025</ns0:GMTime>
-    <ns0:Remark>cpu: 0.013s</ns0:Remark>
-  </ns0:Session>
-</ns0:QRZDatabase>"""
             response = requests.get(self.base_url, params=params, timeout=10)
             response.raise_for_status()
             
