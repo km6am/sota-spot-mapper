@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SOTA-RBN Interactive Propagation Map</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { 
+            margin: 0; 
+            padding: 0; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: #f5f5f5;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 1.8em;
+            font-weight: 300;
+        }
+        
+        .header p {
+            margin: 5px 0 0 0;
+            opacity: 0.9;
+            font-size: 0.9em;
+        }
+        
+        .controls-panel {
+            background: white;
+            padding: 12px 20px;
+            border-bottom: 1px solid #e0e0e0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            align-items: end;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .control-group label {
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #333;
+            font-size: 0.85em;
+        }
+        
+        .control-group select,
+        .control-group input {
+            padding: 6px 8px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-size: 13px;
+            transition: border-color 0.3s;
+        }
+        
+        .control-group select:focus,
+        .control-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .stats-bar {
+            background: white;
+            padding: 8px 20px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.9em;
+        }
+        
+        .stat-value {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #667eea;
+        }
+        
+        .map-container {
+            position: relative;
+            height: calc(100vh - 200px);
+        }
+        
+        #map { 
+            height: 100%; 
+            width: 100%;
+        }
+        
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            z-index: 1000;
+            max-width: 350px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        
+        .info-panel h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .path-info {
+            margin-bottom: 15px;
+            padding: 15px;
+            border-left: 4px solid #667eea;
+            background: #f8f9fa;
+            border-radius: 0 6px 6px 0;
+        }
+        
+        .path-info h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        
+        .path-detail {
+            margin: 5px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .path-detail strong {
+            color: #667eea;
+        }
+        
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            right: 15px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            z-index: 1000;
+            max-width: 220px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        .legend h4 {
+            margin: 0 0 12px 0;
+            color: #1a1a1a;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 4px 0;
+            padding: 2px 0;
+        }
+        
+        .legend-color {
+            width: 16px;
+            height: 4px;
+            margin-right: 10px;
+            border-radius: 2px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .legend-circle {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 2px solid;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .legend-text {
+            font-size: 12px;
+            color: #4a4a4a;
+            font-weight: 500;
+        }
+        
+        .legend-section {
+            margin: 8px 0 6px 0;
+            font-weight: 600;
+            color: #1a1a1a;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .legend-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+            margin: 6px 0;
+        }
+        
+        .legend-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 8px;
+        }
+        
+        .legend-button {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 10px;
+            font-weight: 500;
+            color: #667eea;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .legend-button:hover {
+            background: rgba(102, 126, 234, 0.15);
+            border-color: rgba(102, 126, 234, 0.3);
+            transform: translateY(-1px);
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.9);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            z-index: 2000;
+            text-align: center;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .no-data h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        
+        .frequency-bands {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        
+        .frequency-band {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .frequency-band:hover {
+            transform: scale(1.05);
+        }
+        
+        .frequency-band.active {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        
+        @media (max-width: 768px) {
+            .controls-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .info-panel,
+            .legend {
+                max-width: calc(100vw - 40px);
+                right: 20px;
+                left: 20px;
+            }
+            
+            .stats-bar {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏔️ SOTA-RBN Propagation Map</h1>
+        <p>Interactive visualization of radio propagation paths between SOTA summits and RBN spotters</p>
+    </div>
+    
+    <div class="controls-panel">
+        <div class="controls-grid">
+            <div class="control-group">
+                <label for="frequency-filter">Frequency Band</label>
+                <select id="frequency-filter">
+                    <option value="">All Bands</option>
+                    <option value="40m">40m & below (≤7.5 MHz)</option>
+                    <option value="20m">20m (7.5-14.5 MHz)</option>
+                    <option value="15m">15m (14.5-21.5 MHz)</option>
+                    <option value="12/10m">12/10m (21.5-29 MHz)</option>
+                    <option value="6m+">6m & above (≥29 MHz)</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="callsign-filter">Callsign (partial)</label>
+                <input type="text" id="callsign-filter" placeholder="e.g., KX0R">
+            </div>
+            
+            <div class="control-group">
+                <label for="summit-filter">Summit (partial)</label>
+                <input type="text" id="summit-filter" placeholder="e.g., W0C/SR-035">
+            </div>
+            
+            <div class="control-group">
+                <label for="time-range-filter">Time Range</label>
+                <select id="time-range-filter">
+                    <option value="5">Last 5 minutes</option>
+                    <option value="10" selected>Last 10 minutes</option>
+                    <option value="15">Last 15 minutes</option>
+                    <option value="30">Last 30 minutes</option>
+                    <option value="60">Last 1 hour</option>
+                    <option value="120">Last 2 hours</option>
+                    <option value="360">Last 6 hours</option>
+                    <option value="720">Last 12 hours</option>
+                    <option value="1440">Last 24 hours</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <button class="btn" onclick="applyFilters()">Apply Filters</button>
+                <button class="btn btn-secondary" onclick="resetFilters()">Reset</button>
+                <button class="btn btn-secondary" onclick="loadData()">🔄 Refresh</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="stats-bar">
+        <div class="stat-item">
+            <span>📊 Total Paths:</span>
+            <span class="stat-value" id="total-paths">0</span>
+        </div>
+        <div class="stat-item">
+            <span>🏔️ Unique Summits:</span>
+            <span class="stat-value" id="unique-summits">0</span>
+        </div>
+        <div class="stat-item">
+            <span>📡 Unique Spotters:</span>
+            <span class="stat-value" id="unique-spotters">0</span>
+        </div>
+        <div class="stat-item">
+            <span>📶 Active Bands:</span>
+            <span class="stat-value" id="active-bands">0</span>
+        </div>
+        <div class="stat-item">
+            <span>🕐 Last Updated:</span>
+            <span class="stat-value" id="last-updated">-</span>
+        </div>
+        <div class="stat-item">
+            <span>⏰ Time Range:</span>
+            <span class="stat-value" id="time-range-display">24 hours</span>
+        </div>
+    </div>
+    
+    <div class="map-container">
+        <div id="map"></div>
+        
+        <div class="info-panel">
+            <h3>Path Information</h3>
+            <div id="selected-info">
+                <p>Click on a propagation path to see details</p>
+            </div>
+        </div>
+        
+        <div class="legend">
+            <h4>Legend</h4>
+            
+            <div class="legend-item">
+                <div class="legend-circle" style="background: #ff4444; border-color: #ff0000;"></div>
+                <span class="legend-text">SOTA Summit</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-circle" style="background: #4444ff; border-color: #0000ff;"></div>
+                <span class="legend-text">RBN Spotter</span>
+            </div>
+            
+            <div class="legend-section">Frequency Bands</div>
+            
+            <div class="legend-grid">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #8B0000;"></div>
+                    <span class="legend-text">160m</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #FF0000;"></div>
+                    <span class="legend-text">80m</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #FF8C00;"></div>
+                    <span class="legend-text">40m</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #FFD700;"></div>
+                    <span class="legend-text">20m</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #ADFF2F;"></div>
+                    <span class="legend-text">15m</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #00FF7F;"></div>
+                    <span class="legend-text">10m</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #00FFFF;"></div>
+                    <span class="legend-text">6m</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #0080FF;"></div>
+                    <span class="legend-text">2m</span>
+                </div>
+            </div>
+            
+            <div class="legend-buttons">
+                <div class="legend-button" onclick="filterByBand('160m')">160m</div>
+                <div class="legend-button" onclick="filterByBand('80m')">80m</div>
+                <div class="legend-button" onclick="filterByBand('40m')">40m</div>
+                <div class="legend-button" onclick="filterByBand('20m')">20m</div>
+                <div class="legend-button" onclick="filterByBand('15m')">15m</div>
+                <div class="legend-button" onclick="filterByBand('10m')">10m</div>
+                <div class="legend-button" onclick="filterByBand('6m')">6m</div>
+                <div class="legend-button" onclick="filterByBand('2m')">2m</div>
+            </div>
+        </div>
+        
+        <div class="loading" id="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Loading propagation data...</p>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Global variables
+        let map;
+        let allPaths = [];
+        let filteredPaths = [];
+        let pathLayers = [];
+        let markers = [];
+        
+        // API endpoint for fetching propagation data
+        const API_ENDPOINT = 'api_propagation_paths.php';
+        
+        // Initialize the application
+        function init() {
+            showLoading(true);
+            
+            // Initialize map
+            map = L.map('map').setView([39.91651579069767, -90.44023796976744], 4);
+            
+            // Add tile layer
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+            
+            // Load data
+            loadData();
+            
+            // Add event listeners for automatic filtering
+            document.getElementById('frequency-filter').addEventListener('change', applyFilters);
+            document.getElementById('callsign-filter').addEventListener('input', applyFilters);
+            document.getElementById('summit-filter').addEventListener('input', applyFilters);
+            document.getElementById('time-range-filter').addEventListener('change', applyFilters);
+        }
+        
+        // Load data from API
+        function loadData(preserveViewport = false) {
+            // Use the current time range filter value, default to 10 minutes
+            const timeRange = document.getElementById('time-range-filter')?.value || '10';
+            const params = new URLSearchParams();
+            params.append('minutes', timeRange);
+            params.append('timezone_offset', new Date().getTimezoneOffset());
+            
+            fetch(`${API_ENDPOINT}?${params.toString()}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        allPaths = data.matches;
+                        filteredPaths = [...allPaths];
+                        
+                        updateStats();
+                        renderPaths();
+                        
+                        // Only fit map to bounds if not preserving viewport (initial load)
+                        if (!preserveViewport) {
+                            fitMapToBounds();
+                        }
+                    } else {
+                        console.error('API error:', data.error);
+                        showErrorMessage(data.error || 'Failed to load data');
+                    }
+                })
+                .catch(error => {
+                    console.error('Fetch error:', error);
+                    showErrorMessage('Failed to connect to database. Please check your connection.');
+                })
+                .finally(() => {
+                    showLoading(false);
+                });
+        }
+        
+        // Show/hide loading indicator
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+        
+        // Update statistics
+        function updateStats() {
+            const uniqueSummits = new Set(filteredPaths.map(p => p.summit)).size;
+            const uniqueSpotters = new Set(filteredPaths.map(p => p.spotter)).size;
+            const activeBands = new Set(filteredPaths.map(p => getFrequencyBand(p.frequency))).size;
+            
+            // Update time range display
+            const timeRange = document.getElementById('time-range-filter')?.value || '10';
+            const timeRangeText = getTimeRangeText(timeRange);
+            
+            document.getElementById('total-paths').textContent = filteredPaths.length;
+            document.getElementById('unique-summits').textContent = uniqueSummits;
+            document.getElementById('unique-spotters').textContent = uniqueSpotters;
+            document.getElementById('active-bands').textContent = activeBands;
+            document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
+            document.getElementById('time-range-display').textContent = timeRangeText;
+        }
+        
+        // Get human-readable time range text
+        function getTimeRangeText(minutes) {
+            const mins = parseInt(minutes);
+            if (mins <= 60) return `${mins} minutes`;
+            if (mins <= 1440) return `${Math.round(mins / 60)} hours`;
+            return `${Math.round(mins / 1440)} days`;
+        }
+        
+        // Get frequency band from frequency
+        function getFrequencyBand(freq) {
+            if (freq >= 1800 && freq <= 2000) return '160m';
+            if (freq >= 3500 && freq <= 4000) return '80m';
+            if (freq >= 5300 && freq <= 5400) return '60m';
+            if (freq >= 7000 && freq <= 7300) return '40m';
+            if (freq >= 10100 && freq <= 10150) return '30m';
+            if (freq >= 14000 && freq <= 14350) return '20m';
+            if (freq >= 18068 && freq <= 18168) return '17m';
+            if (freq >= 21000 && freq <= 21450) return '15m';
+            if (freq >= 24890 && freq <= 24990) return '12m';
+            if (freq >= 28000 && freq <= 29700) return '10m';
+            if (freq >= 50000 && freq <= 54000) return '6m';
+            if (freq >= 144000 && freq <= 148000) return '2m';
+            if (freq >= 222000 && freq <= 225000) return '1.25m';
+            if (freq >= 420000 && freq <= 450000) return '70cm';
+            if (freq >= 902000 && freq <= 928000) return '33cm';
+            if (freq >= 1240000 && freq <= 1300000) return '23cm';
+            return 'Unknown';
+        }
+        
+        // Get line color based on frequency
+        function getFrequencyColor(freq) {
+            if (freq >= 1800 && freq <= 2000) return '#8B0000';      // 160m - dark red
+            if (freq >= 3500 && freq <= 4000) return '#FF0000';      // 80m - red
+            if (freq >= 5300 && freq <= 5400) return '#FF4500';      // 60m - orange red
+            if (freq >= 7000 && freq <= 7300) return '#FF8C00';      // 40m - dark orange
+            if (freq >= 10100 && freq <= 10150) return '#FFA500';    // 30m - orange
+            if (freq >= 14000 && freq <= 14350) return '#FFD700';    // 20m - gold
+            if (freq >= 18068 && freq <= 18168) return '#FFFF00';    // 17m - yellow
+            if (freq >= 21000 && freq <= 21450) return '#ADFF2F';    // 15m - green yellow
+            if (freq >= 24890 && freq <= 24990) return '#00FF00';    // 12m - lime
+            if (freq >= 28000 && freq <= 29700) return '#00FF7F';    // 10m - spring green
+            if (freq >= 50000 && freq <= 54000) return '#00FFFF';    // 6m - cyan
+            if (freq >= 144000 && freq <= 148000) return '#0080FF';  // 2m - blue
+            if (freq >= 222000 && freq <= 225000) return '#0000FF';  // 1.25m - blue
+            if (freq >= 420000 && freq <= 450000) return '#8000FF';  // 70cm - purple
+            if (freq >= 902000 && freq <= 928000) return '#FF00FF';  // 33cm - magenta
+            if (freq >= 1240000 && freq <= 1300000) return '#FF0080'; // 23cm - pink
+            return '#808080';                                       // Unknown - gray
+        }
+        
+        // Get line weight based on SNR
+        function getLineWeight(snr) {
+            if (snr < 5) return 1;
+            if (snr < 10) return 2;
+            if (snr < 15) return 3;
+            if (snr < 20) return 4;
+            if (snr < 25) return 5;
+            if (snr < 30) return 6;
+            if (snr < 35) return 7;
+            return 8;
+        }
+        
+        // Calculate great circle points between two coordinates
+        function getGreatCirclePoints(lat1, lon1, lat2, lon2, numPoints = 50) {
+            const points = [];
+            const lat1Rad = lat1 * Math.PI / 180;
+            const lon1Rad = lon1 * Math.PI / 180;
+            const lat2Rad = lat2 * Math.PI / 180;
+            const lon2Rad = lon2 * Math.PI / 180;
+            
+            const d = Math.acos(Math.sin(lat1Rad) * Math.sin(lat2Rad) + 
+                             Math.cos(lat1Rad) * Math.cos(lat2Rad) * Math.cos(lon2Rad - lon1Rad));
+            
+            for (let i = 0; i <= numPoints; i++) {
+                const f = i / numPoints;
+                const a = Math.sin((1 - f) * d) / Math.sin(d);
+                const b = Math.sin(f * d) / Math.sin(d);
+                
+                const x = a * Math.cos(lat1Rad) * Math.cos(lon1Rad) + b * Math.cos(lat2Rad) * Math.cos(lon2Rad);
+                const y = a * Math.cos(lat1Rad) * Math.sin(lon1Rad) + b * Math.cos(lat2Rad) * Math.sin(lon2Rad);
+                const z = a * Math.sin(lat1Rad) + b * Math.sin(lat2Rad);
+                
+                const lat = Math.atan2(z, Math.sqrt(x * x + y * y)) * 180 / Math.PI;
+                const lon = Math.atan2(y, x) * 180 / Math.PI;
+                
+                points.push([lat, lon]);
+            }
+            
+            return points;
+        }
+        
+        // Render paths on the map
+        function renderPaths() {
+            // Clear existing layers
+            clearMap();
+            
+            if (filteredPaths.length === 0) {
+                showNoDataMessage();
+                return;
+            }
+            
+            filteredPaths.forEach(function(path) {
+                // SOTA summit marker
+                const summitMarker = L.circleMarker([path.summit_lat, path.summit_lon], {
+                    radius: 6,
+                    color: '#ff0000',
+                    fillColor: '#ff4444',
+                    fillOpacity: 0.8
+                }).addTo(map);
+                
+                summitMarker.bindPopup(`
+                    <div style="min-width: 250px;">
+                        <h4 style="margin: 0 0 10px 0; color: #ff0000;">🏔️ SOTA Summit</h4>
+                        <p><strong>${path.summit}</strong><br>
+                        ${path.summit_name}<br>
+                        <em>Activated by ${path.callsign}</em></p>
+                        <div style="margin-top: 15px;">
+                            <a href="https://sotl.as/summits/${path.summit}" target="_blank" style="display: inline-block; background: #667eea; color: white; padding: 8px 12px; text-decoration: none; border-radius: 4px; margin-right: 8px;">📋 SOTL.AS</a>
+                            <a href="https://sotl.as/activators/${path.callsign}" target="_blank" style="display: inline-block; background: #28a745; color: white; padding: 8px 12px; text-decoration: none; border-radius: 4px;">👤 Profile</a>
+                        </div>
+                    </div>
+                `);
+                
+                // RBN spotter marker
+                const spotterMarker = L.circleMarker([path.spotter_lat, path.spotter_lon], {
+                    radius: 5,
+                    color: '#0000ff',
+                    fillColor: '#4444ff',
+                    fillOpacity: 0.8
+                }).addTo(map);
+                
+                spotterMarker.bindPopup(`
+                    <div style="min-width: 250px;">
+                        <h4 style="margin: 0 0 10px 0; color: #0000ff;">📡 RBN Spotter</h4>
+                        <p><strong>${path.spotter}</strong><br>
+                        ${path.spotter_name}<br>
+                        <strong>SNR:</strong> ${path.snr} dB</p>
+                    </div>
+                `);
+                
+                // Propagation path line (great circle)
+                const greatCirclePoints = getGreatCirclePoints(
+                    path.summit_lat, path.summit_lon,
+                    path.spotter_lat, path.spotter_lon
+                );
+                const pathLine = L.polyline(greatCirclePoints, {
+                    color: getFrequencyColor(path.frequency),
+                    weight: getLineWeight(path.snr),
+                    opacity: 0.7
+                }).addTo(map);
+                
+                // Add click handler for path info
+                pathLine.on('click', function() {
+                    showPathInfo(path);
+                });
+                
+                pathLine.bindTooltip(`
+                    <div style="text-align: center;">
+                        <strong>${path.callsign} → ${path.spotter}</strong><br>
+                        ${path.frequency.toFixed(1)} kHz, ${path.distance} km<br>
+                        SNR: ${path.snr} dB
+                    </div>
+                `);
+                
+                // Store references for cleanup
+                markers.push(summitMarker, spotterMarker);
+                pathLayers.push(pathLine);
+            });
+        }
+        
+        // Show path information in the info panel
+        function showPathInfo(path) {
+            const infoHtml = `
+                <div class="path-info">
+                    <h4>${path.callsign} on ${path.summit}</h4>
+                    <div class="path-detail">
+                        <span>📡 Heard by:</span>
+                        <strong>${path.spotter}</strong>
+                    </div>
+                    <div class="path-detail">
+                        <span>📶 Frequency:</span>
+                        <strong>${path.frequency.toFixed(1)} kHz</strong>
+                    </div>
+                    <div class="path-detail">
+                        <span>📏 Distance:</span>
+                        <strong>${path.distance} km</strong>
+                    </div>
+                    <div class="path-detail">
+                        <span>📊 SNR:</span>
+                        <strong>${path.snr} dB</strong>
+                    </div>
+                    <div class="path-detail">
+                        <span>🕐 Time:</span>
+                        <strong>${path.timestamp}</strong>
+                    </div>
+                    <div class="path-detail">
+                        <span>🏷️ Band:</span>
+                        <strong>${getFrequencyBand(path.frequency)}</strong>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('selected-info').innerHTML = infoHtml;
+        }
+        
+        // Clear the map
+        function clearMap() {
+            markers.forEach(marker => map.removeLayer(marker));
+            pathLayers.forEach(layer => map.removeLayer(layer));
+            markers = [];
+            pathLayers = [];
+        }
+        
+        // Show no data message
+        function showNoDataMessage() {
+            const noDataHtml = `
+                <div class="no-data">
+                    <h3>No paths found</h3>
+                    <p>Try adjusting your filters to see more results.</p>
+                </div>
+            `;
+            document.getElementById('selected-info').innerHTML = noDataHtml;
+        }
+        
+        // Show error message
+        function showErrorMessage(message) {
+            const errorHtml = `
+                <div class="no-data">
+                    <h3>Error Loading Data</h3>
+                    <p>${message}</p>
+                    <button class="btn" onclick="loadData()">Retry</button>
+                </div>
+            `;
+            document.getElementById('selected-info').innerHTML = errorHtml;
+        }
+        
+        // Fit map to show all points
+        function fitMapToBounds() {
+            if (filteredPaths.length === 0) return;
+            
+            const group = new L.featureGroup();
+            filteredPaths.forEach(function(path) {
+                group.addLayer(L.marker([path.summit_lat, path.summit_lon]));
+                group.addLayer(L.marker([path.spotter_lat, path.spotter_lon]));
+            });
+            map.fitBounds(group.getBounds().pad(0.1));
+        }
+        
+        // Apply filters
+        function applyFilters() {
+            showLoading(true);
+            
+            const frequencyFilter = document.getElementById('frequency-filter').value;
+            const callsignFilter = document.getElementById('callsign-filter').value;
+            const summitFilter = document.getElementById('summit-filter').value;
+            const timeRangeFilter = document.getElementById('time-range-filter').value;
+            
+            // Build query parameters
+            const params = new URLSearchParams();
+            if (frequencyFilter) params.append('frequency', frequencyFilter);
+            if (callsignFilter) params.append('callsign', callsignFilter);
+            if (summitFilter) params.append('summit', summitFilter);
+            if (timeRangeFilter) params.append('minutes', timeRangeFilter);
+            params.append('timezone_offset', new Date().getTimezoneOffset());
+            
+            // Fetch filtered data from API
+            fetch(`${API_ENDPOINT}?${params.toString()}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        filteredPaths = data.matches;
+                        updateStats();
+                        renderPaths();
+                        fitMapToBounds();
+                    } else {
+                        console.error('API error:', data.error);
+                        showErrorMessage(data.error || 'Failed to apply filters');
+                    }
+                })
+                .catch(error => {
+                    console.error('Fetch error:', error);
+                    showErrorMessage('Failed to apply filters. Please try again.');
+                })
+                .finally(() => {
+                    showLoading(false);
+                });
+        }
+        
+        // Reset filters
+        function resetFilters() {
+            document.getElementById('frequency-filter').value = '';
+            document.getElementById('callsign-filter').value = '';
+            document.getElementById('summit-filter').value = '';
+            document.getElementById('time-range-filter').value = '10'; // Reset to 10 minutes
+            
+            // Reload all data
+            loadData();
+        }
+        
+        // Filter by frequency band (quick filter buttons)
+        function filterByBand(band) {
+            document.getElementById('frequency-filter').value = band;
+            applyFilters();
+        }
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', init);
+        
+        // Auto-refresh data every minute
+        setInterval(() => {
+            // Always auto-refresh regardless of filters, but preserve viewport
+            loadData(true);
+        }, 60 * 1000); // 1 minute
+    </script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+[Unit]
+Description=SOTA RBN Matcher Service
+Documentation=https://github.com/your-repo/sota-matcher
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=simple
+User=sota
+Group=sota
+WorkingDirectory=/opt/sota-matcher
+ExecStart=/usr/bin/python3 /opt/sota-matcher/sota-matcher-daemon.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sota-rbn-matcher
+
+# Environment variables
+Environment=PYTHONUNBUFFERED=1
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/sota-matcher /var/log/sota-matcher
+
+# Resource limits
+LimitNOFILE=65536
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target

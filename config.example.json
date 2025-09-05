@@ -1,45 +1,26 @@
 {
-    "_comment": "SOTA RBN Matcher Configuration File",
-    "_instructions": "Copy this file to config.json and modify the values as needed",
-    
-    "callsigns": {
-        "my_callsign": "KM6AM",
-        "cluster_callsign": "KM6AM"
+    "database": {
+        "host": "localhost",
+        "port": 3306,
+        "user": "sota_user",
+        "password": "your_secure_database_password_here",
+        "database": "sota_matcher"
     },
-    
-    "credentials": {
-        "qrz": {
-            "username": "KM6AM",
-            "password": "your_qrz_password_here"
-        },
-        "mysql": {
-            "host": "localhost",
-            "port": 3306,
-            "user": "root",
-            "password": "your_mysql_password_here",
-            "database": "spots"
-        }
+    "qrz": {
+        "username": "your_qrz_username_here",
+        "password": "your_qrz_password_here"
     },
-    
-    "debug": {
-        "enabled": false
+    "sota": {
+        "api_url": "https://api2.sota.org.uk/api",
+        "cache_duration": 86400
     },
-    
-    "timing": {
-        "refresh_interval_seconds": 60,
-        "history_window_minutes": 60,
-        "map_window_minutes": 15,
-        "recent_spots_minutes": 60
+    "matching": {
+        "interval_minutes": 1,
+        "enhancement_batch_size": 200,
+        "max_distance_km": 20000
     },
-    
-    "cluster_servers": {
-        "sota": {
-            "host": "cluster.sota.org.uk",
-            "port": 7300
-        },
-        "rbn": {
-            "host": "telnet.reversebeacon.net",
-            "port": 7000
-        }
+    "logging": {
+        "level": "INFO",
+        "file": "/var/log/sota-matcher.log"
     }
 }
